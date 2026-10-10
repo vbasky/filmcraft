@@ -129,7 +129,7 @@ fn main() -> eframe::Result {
         event_loop_builder: agent_event_loop(control_port.is_some()),
         ..Default::default()
     };
-    // Before eframe creates the wgpu instance: leave OpenGL out on Windows (see graphics.rs).
+    // Before eframe creates the wgpu instance: select DirectX 12 on Windows (see graphics.rs).
     #[cfg(target_os = "windows")]
     let options = {
         let mut options = options;

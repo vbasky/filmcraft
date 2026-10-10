@@ -25,6 +25,11 @@ macOS.
 
 ## 2. Build and run
 
+On Windows, the window renderer defaults to DirectX 12 to avoid startup faults while probing
+Vulkan and OpenGL drivers. `WGPU_BACKEND` overrides this choice (for example, `vulkan`). Some
+effects can fall back to CPU rendering with the DirectX shader compiler; other platforms retain
+their existing backend selection.
+
 ```sh
 cargo run --release -p filmcraft                      # desktop app with the demo project
 cargo run --release -p filmcraft -- --empty           # start without the demo project

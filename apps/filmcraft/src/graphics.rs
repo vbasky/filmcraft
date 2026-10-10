@@ -2,18 +2,14 @@
 
 use eframe::{NativeOptions, egui_wgpu::WgpuSetup, wgpu::Backends};
 
-/// Restrict the wgpu instance to the primary backends (Vulkan, DirectX 12, Metal), i.e. leave
-/// OpenGL out, unless `backend_override` (normally `Backends::from_env()`, i.e. `WGPU_BACKEND`)
-/// names other backends.
+/// Use DirectX 12 unless WGPU_BACKEND explicitly selects another backend.
 pub fn configure(options: &mut NativeOptions, backend_override: Option<Backends>) {
     if let WgpuSetup::CreateNew(create) = &mut options.wgpu_options.wgpu_setup {
-        // eframe's default includes GL. Creating that backend can crash inside AMD's
-        // atio6axx.dll before adapter selection or any Rust error handling runs, so the
-        // window never appears. Choosing an adapter afterwards is too late: only leaving GL
-        // out of the instance avoids it. Keep Vulkan and DX12 both: forcing DX12 alone sends
-        // shaders through FXC (which rejects fx.wgsl, silently falling back to the CPU) and
-        // leaves machines without DX12 with no backend at all.
-        create.instance_descriptor.backends = backend_override.unwrap_or(Backends::PRIMARY);
+        // Vulkan and OpenGL drivers can fault during instance initialization, before
+        // adapter selection or Rust error handling. DX12 avoids probing those drivers.
+        // An explicit override stays available for hardware without DX12 and for
+        // shader-compiler compatibility (FXC can send some effects to the CPU fallback).
+        create.instance_descriptor.backends = backend_override.unwrap_or(Backends::DX12);
     }
 }
 
@@ -31,16 +27,16 @@ mod tests {
     }
 
     #[test]
-    fn windows_default_leaves_out_gl() {
+    fn windows_default_avoids_vulkan_and_gl() {
         // eframe's own default (PRIMARY | GL) would initialize OpenGL as well.
         let WgpuSetup::CreateNew(eframe_default) = NativeOptions::default().wgpu_options.wgpu_setup else {
             panic!("default native options must create a wgpu instance");
         };
         assert!(eframe_default.instance_descriptor.backends.contains(Backends::GL));
         let configured = configured_backends(None);
-        assert_eq!(configured, Backends::PRIMARY);
+        assert_eq!(configured, Backends::DX12);
         assert!(!configured.contains(Backends::GL));
-        assert!(configured.contains(Backends::DX12) && configured.contains(Backends::VULKAN));
+        assert!(!configured.contains(Backends::VULKAN));
     }
 
     #[test]
